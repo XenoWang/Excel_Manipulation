@@ -43,6 +43,7 @@ def merge_cells(sheet):
     return sheet
 
 def add_title_row(sheet, title, color3, font_size):
+    global changed
     # Unmerge all cells and store the merged ranges
     merged_ranges = list(sheet.merged_cells.ranges)
     for merged_range in merged_ranges:
@@ -70,6 +71,8 @@ def add_title_row(sheet, title, color3, font_size):
 
     # Merge the title row based on the number of columns with data
     merge_title_row(sheet)
+    changed = True
+
     return sheet
 
 def merge_title_row(sheet):
@@ -89,16 +92,16 @@ def merge_title_row(sheet):
         title_cell.font = Font(bold=True, size=title_cell.font.size)  # Ensure the font is bold and size is set
 
 
-def save_sheets(sheet):
+def save_sheets(sheet, workbook):
     if os.path.exists('output.xlsx'):
         output_wb = load_workbook('output.xlsx')
         output_sheet = output_wb.create_sheet('Processed Data')
         for row in sheet.rows:
             for cell in row:
-                # Copy the value to the new sheet and save it 复制值并保存
+                if isinstance(cell, openpyxl.cell.cell.MergedCell):
+                    continue  # Skip merged cells
                 new_cell = output_sheet[cell.coordinate]
                 new_cell.value = cell.value
-                # Create a new PatternFill object for the new cell 创建新的PatternFill对象
                 if cell.fill and cell.fill.fill_type:
                     new_cell.fill = PatternFill(
                         start_color=cell.fill.start_color.index,
@@ -125,51 +128,12 @@ def save_sheets(sheet):
                         shrink_to_fit=cell.alignment.shrink_to_fit,
                         indent=cell.alignment.indent
                     )
-        # Manually merge cells 手动合并
         for merged_range in sheet.merged_cells.ranges:
             output_sheet.merge_cells(str(merged_range))
         output_wb.save('output.xlsx')
         print("Output file saved successfully")
     else:
-        output_wb = load_workbook(file_path)
-        output_sheet = output_wb.active
-        for row in sheet.rows:
-            for cell in row:
-                # Copy the value to the new sheet 复制值
-                new_cell = output_sheet[cell.coordinate]
-                new_cell.value = cell.value
-                # Create a new PatternFill object for the new cell 创建新的PatternFill对象
-                if cell.fill and cell.fill.fill_type:
-                    new_cell.fill = PatternFill(
-                        start_color=cell.fill.start_color.index,
-                        end_color=cell.fill.end_color.index,
-                        fill_type=cell.fill.fill_type
-                    )
-                if cell.font:
-                    new_cell.font = Font(
-                        name=cell.font.name,
-                        size=cell.font.size,
-                        bold=cell.font.bold,
-                        italic=cell.font.italic,
-                        vertAlign=cell.font.vertAlign,
-                        underline=cell.font.underline,
-                        strike=cell.font.strike,
-                        color=cell.font.color
-                    )
-                if cell.alignment:
-                    new_cell.alignment = Alignment(
-                        horizontal=cell.alignment.horizontal,
-                        vertical=cell.alignment.vertical,
-                        text_rotation=cell.alignment.text_rotation,
-                        wrap_text=cell.alignment.wrap_text,
-                        shrink_to_fit=cell.alignment.shrink_to_fit,
-                        indent=cell.alignment.indent
-                    )
-        # Manually merge cells 手动合并
-        for merged_range in sheet.merged_cells.ranges:
-            output_sheet.merge_cells(str(merged_range))
-        output_wb.save('output.xlsx')
-        print("Output file saved successfully")
+        workbook.save('output.xlsx')
 
 def remove_color_format(sheet, row_number):
     for cell in sheet[row_number]:
@@ -223,59 +187,62 @@ def change_row_colors(sheet, color1, color2):
             row_count += 1
             current_row += 1
     changed = True
-    return wb
+    return ws
 
-# Load the selected Excel file 加载选择的Excel文件
-wb = load_workbook(file_path, read_only=False)
-sheet = wb.active
-while True:
-    print("Menu 菜单:")
-    print("1. Merge cells 合并单元格")
-    print("2. Change background color of cells 更改单元格的背景颜色")
-    print("0. Quit the program 退出程序")
-    choice = input("Enter your choice 请输入你的选择: ")
+if __name__ == '__main__':
+    # Load the selected Excel file 加载选择的Excel文件
+    wb = load_workbook(file_path, read_only=False)
+    sheet = wb.active
+    while True:
+        print("Menu 菜单:")
+        print("1. Merge cells 合并单元格")
+        print("2. Change background color of cells 更改单元格的背景颜色")
+        print("3. Add title row 添加标题行")
+        print("0. Quit the program 退出程序")
+        choice = input("Enter your choice 请输入你的选择: ")
 
-    if choice == "1":
-        if file_path:
-            # 加载Excel文件
-            sheet = merge_cells(sheet)
-    elif choice == "2":
-        if file_path:
-            while True:
-                print("Menu:")
-                print("1. Change title color 更改标题颜色")
-                print("2. Change row colors 更改行颜色")
-                print("0. Go back to previous menu 返回上一级菜单")
-                choice = input("Enter your choice 请输入你的选择: ")
+        if choice == "1":
+            if file_path:
+                # 加载Excel文件
+                sheet = merge_cells(sheet)
+        elif choice == "2":
+            if file_path:
+                while True:
+                    print("Menu:")
+                    print("1. Change title color 更改标题颜色")
+                    print("2. Change row colors 更改行颜色")
+                    print("0. Go back to previous menu 返回上一级菜单")
+                    choice = input("Enter your choice 请输入你的选择: ")
 
-                if choice == "1":
-                    row_number = 1
-                    color = input("Enter the color hex code 请输入颜色的十六进制代码 (e.g. FF0000 for red no need to add #, 不需要加#): ")
-                    sheet = change_title_color(sheet, row_number,color)
-                    break
-                elif choice == "2":
-                    # Ask user for two colors 询问用户两个颜色
-                    color1 = input("Enter the color1 hex code 请输入颜色1的十六进制代码 (e.g. FF0000 for red no need to add #, 不需要加#): ")
-                    color2 = input("Enter the color2 hex code 请输入颜色2的十六进制代码 (e.g. FF0000 for red no need to add #, 不需要加#): ")
-                    change_row_colors(sheet, color1, color2)
-                    break
-                elif choice == "0":
-                    break
-                else:
-                    print("Invalid choice. Please try again. 无效的选择，请重试。")
+                    if choice == "1":
+                        row_number = 1
+                        color = input("Enter the color hex code 请输入颜色的十六进制代码 (e.g. FF0000 for red no need to add #, 不需要加#): ")
+                        sheet = change_title_color(sheet, row_number,color)
+                        break
+                    elif choice == "2":
+                        # Ask user for two colors 询问用户两个颜色
+                        color1 = input("Enter the color1 hex code 请输入颜色1的十六进制代码 (e.g. FF0000 for red no need to add #, 不需要加#): ")
+                        color2 = input("Enter the color2 hex code 请输入颜色2的十六进制代码 (e.g. FF0000 for red no need to add #, 不需要加#): ")
+                        change_row_colors(sheet, color1, color2)
+                        break
+                    elif choice == "0":
+                        break
+                    else:
+                        print("Invalid choice. Please try again. 无效的选择，请重试。")
+            else:
+                print("No file selected 未选择文件")
+        elif choice == "3":
+            if file_path:
+                title = input("Enter the title to add to the Excel sheet: ")
+                color3 = input("Enter the color hex code for the title (e.g. FF0000 for red no need to add #, 不需要加#): ")
+                font_size = int(input("Enter the font size for the title (e.g. 24): "))
+                add_title_row(sheet, title, color3, font_size)
+        elif choice == "0":
+            if changed:
+                save_sheets(sheet,wb)
+                wb.close()
+            else:
+                print("No changes made, not saving to output.xlsx file. 未进行任何更改,不保存到output.xlsx文件中。")
+            break
         else:
-            print("No file selected 未选择文件")
-    elif choice == "3":
-        if file_path:
-            title = input("Enter the title to add to the Excel sheet: ")
-            color3 = input("Enter the color hex code for the title (e.g. FF0000 for red no need to add #, 不需要加#): ")
-            font_size = int(input("Enter the font size for the title (e.g. 24): "))
-            add_title_row(sheet, title, color3, font_size)
-    elif choice == "0":
-        if changed:
-            save_sheets(sheet)
-        else:
-            print("No changes made, not saving to output.xlsx file. 未进行任何更改,不保存到output.xlsx文件中。")
-        break
-    else:
-        print("Invalid choice. Please try again. 无效的选择，请重试。")
+            print("Invalid choice. Please try again. 无效的选择，请重试。")
