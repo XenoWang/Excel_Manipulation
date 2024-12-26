@@ -246,3 +246,4 @@ if __name__ == '__main__':
             break
         else:
             print("Invalid choice. Please try again. 无效的选择，请重试。")
+    print("Program exited 退出程序")
